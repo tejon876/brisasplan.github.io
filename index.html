@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrisaPlan — Agenda, Tareas por Color y Hábitos</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4A93C6" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <!-- Acceso con verificación real al correo -->
+  <section id="login-gate" class="login-gate">
+    <div class="login-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <div class="brand-group">
+          <div class="brand-badge">B</div>
+          <div>
+            <h1 class="brand-name">BrisaPlan</h1>
+            <p class="item-sub">Tu espacio diario sereno y organizado</p>
+          </div>
+        </div>
+        <button type="button" data-toggle-theme class="btn btn-outline btn-xs">Modo oscuro</button>
+      </div>
+
+      <div id="login-step-email">
+        <p class="item-sub" style="margin-bottom:14px;">
+          Inicia sesión con tu correo para sincronizar tu agenda y hábitos entre dispositivos.
+        </p>
+        <form id="login-email-form" class="list-stack">
+          <input id="login-email-input" class="input" type="email" placeholder="tu.correo@ejemplo.com" required />
+          <button id="btn-send-code" type="submit" class="btn btn-primary" style="width:100%;">Continuar</button>
+        </form>
+      </div>
+
+      <div id="login-step-code" style="display:none;">
+        <p class="item-sub" style="margin-bottom:12px;">
+          Enviamos un código de verificación de 6 dígitos a <strong id="verify-target-email"></strong>. Revisa tu bandeja de entrada e ingrésalo aquí:
+        </p>
+        <form id="login-code-form" class="list-stack">
+          <input id="login-code-input" class="input" type="text" inputmode="numeric" maxlength="6" placeholder="Código de 6 dígitos" required />
+          <button type="submit" class="btn btn-primary" style="width:100%;">Verificar y entrar</button>
+          <div style="display:flex;gap:8px;">
+            <button type="button" id="btn-resend-code" class="btn btn-soft btn-xs" style="flex:1;">Reenviar código</button>
+            <button type="button" id="btn-back-email" class="btn btn-outline btn-xs" style="flex:1;">Cambiar correo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Aplicación Principal -->
+  <div id="app-shell" class="app-container" style="display:none;">
+    <header class="topbar">
+      <div class="brand-group">
+        <div class="brand-badge">B</div>
+        <span class="brand-name">BrisaPlan</span>
+      </div>
+      <div class="topbar-controls">
+        <button type="button" data-open-quick-task class="btn btn-primary btn-xs">+ Tarea rápida</button>
+        <button type="button" data-toggle-theme class="btn btn-outline btn-xs">Modo oscuro</button>
+      </div>
+    </header>
+
+    <nav class="desktop-tabs" aria-label="Secciones principales">
+      <button class="tab-btn active" data-tab="hoy">Hoy</button>
+      <button class="tab-btn" data-tab="agenda">Agenda</button>
+      <button class="tab-btn" data-tab="tareas">Tareas y Hábitos</button>
+      <button class="tab-btn" data-tab="correos">Correos</button>
+      <button class="tab-btn" data-tab="espacio">Mi Espacio</button>
+    </nav>
+
+    <!-- 1. HOY -->
+    <main id="panel-hoy" class="view-panel active">
+      <section class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Hábitos hoy</div>
+          <div id="stat-habits" class="stat-num">0 / 0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Mejor racha</div>
+          <div id="stat-streak" class="stat-num">0 días</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Cumplimiento</div>
+          <div id="stat-rate" class="stat-num">0%</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Pendientes</div>
+          <div id="stat-pending" class="stat-num">0</div>
+        </div>
+      </section>
+
+      <div class="grid-2col">
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">Pendientes rápidos</h2>
+              <button type="button" data-open-quick-task class="btn btn-soft btn-xs">+ Agregar</button>
+            </div>
+            <div id="hoy-tasks-list" class="list-stack"></div>
+          </div>
+
+          <div class="card card-peach">
+            <div class="card-head">
+              <h2 class="card-title">Hábitos del día</h2>
+            </div>
+            <div id="hoy-habits-list" class="list-stack"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">Bloques de hoy</h2>
+            </div>
+            <div id="hoy-agenda-list" class="list-stack"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 2. AGENDA -->
+    <section id="panel-agenda" class="view-panel">
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Agenda y bloques horarios</h2>
+          <button type="button" data-open-quick-task class="btn btn-soft btn-xs">+ Tarea rápida</button>
+        </div>
+        <form id="agenda-form" class="form-inline">
+          <input id="agenda-date" class="input" type="date" style="max-width:155px;" required />
+          <input id="agenda-time" class="input" type="time" style="max-width:125px;" required />
+          <input id="agenda-title" class="input" type="text" placeholder="Actividad o bloque..." required />
+          <input id="agenda-color" class="custom-color-input" type="color" value="#4A93C6" title="Color del bloque" />
+          <button type="submit" class="btn btn-primary">Agendar</button>
+        </form>
+        <div id="agenda-full-list" class="list-stack"></div>
+      </div>
+    </section>
+
+    <!-- 3. TAREAS Y HÁBITOS -->
+    <section id="panel-tareas" class="view-panel">
+      <div class="grid-2col">
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Tareas por color</h2>
+          </div>
+          <form id="task-form" class="list-stack" style="margin-bottom:14px;">
+            <div class="form-inline" style="margin-bottom:0;">
+              <input id="task-title-input" class="input" type="text" placeholder="Nueva tarea..." required />
+              <select id="task-prio-input" class="select" style="max-width:125px;">
+                <option value="alta">Alta</option>
+                <option value="media" selected>Media</option>
+                <option value="baja">Baja</option>
+              </select>
+              <button type="submit" class="btn btn-primary">Agregar</button>
+            </div>
+            <div class="color-picker-row">
+              <span class="item-sub">Color:</span>
+              <div id="task-color-swatches" class="color-picker-row"></div>
+            </div>
+          </form>
+          <div id="tasks-full-list" class="list-stack"></div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="pomo-panel">
+              <div id="pomo-task-label" style="font-size:0.82rem;opacity:0.9;">Sesión libre de enfoque</div>
+              <div id="pomo-clock" class="pomo-clock">25:00</div>
+              <div style="display:flex;justify-content:center;gap:8px;">
+                <button id="pomo-start" type="button" class="btn btn-peach btn-xs">Iniciar</button>
+                <button id="pomo-pause" type="button" class="btn btn-soft btn-xs">Pausar</button>
+                <button id="pomo-reset" type="button" class="btn btn-outline btn-xs" style="color:#fff;border-color:rgba(255,255,255,0.4);">Reiniciar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-peach">
+            <div class="card-head">
+              <h2 class="card-title">Hábitos diarios y rachas</h2>
+            </div>
+            <form id="habit-form" class="form-inline">
+              <input id="habit-title-input" class="input" type="text" placeholder="Nuevo hábito..." required />
+              <select id="habit-cat-input" class="select" style="max-width:130px;">
+                <option value="Salud">Salud</option>
+                <option value="Enfoque">Enfoque</option>
+                <option value="Descanso">Descanso</option>
+                <option value="Personal">Personal</option>
+              </select>
+              <button type="submit" class="btn btn-primary">Crear</button>
+            </form>
+            <div id="habits-full-list" class="list-stack"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. CORREOS -->
+    <section id="panel-correos" class="view-panel">
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Bandeja multi-cuenta y filtro anti-spam</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="btn-connect-google-mail" type="button" class="btn btn-primary btn-xs">Conectar correo con permiso</button>
+            <button id="btn-clean-spam" type="button" class="btn btn-peach btn-xs">Limpiar spam</button>
+          </div>
+        </div>
+
+        <div id="connected-accounts-list" style="margin-bottom:12px;"></div>
+
+        <div class="form-inline">
+          <select id="mail-filter-account" class="select" style="max-width:220px;">
+            <option value="all">Todas las cuentas</option>
+          </select>
+        </div>
+
+        <form id="mail-add-form" class="form-inline">
+          <input id="mail-sender" class="input" type="text" placeholder="Remitente..." required />
+          <input id="mail-subject" class="input" type="text" placeholder="Asunto o nota de correo..." required />
+          <button type="submit" class="btn btn-soft">Registrar</button>
+        </form>
+
+        <div id="mail-messages-list" class="list-stack"></div>
+      </div>
+    </section>
+
+    <!-- 5. MI ESPACIO -->
+    <section id="panel-espacio" class="view-panel">
+      <div class="grid-2col">
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">Respaldo y notificaciones</h2>
+            </div>
+            <div class="list-stack">
+              <label class="item-row">
+                <div>
+                  <div class="item-title">Frecuencia de respaldo automático (días)</div>
+                  <div class="item-sub">Mínimo 7 días, sin límite superior</div>
+                </div>
+                <input id="backup-days-input" class="input" type="number" min="7" step="1" value="7" style="max-width:95px;" />
+              </label>
+
+              <div class="item-row">
+                <div>
+                  <div class="item-title">Notificaciones del dispositivo</div>
+                  <div id="notif-status-text" class="item-sub">Desactivadas</div>
+                </div>
+                <button id="btn-enable-notifs" type="button" class="btn btn-soft btn-xs">Activar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-peach">
+            <div class="card-head">
+              <h2 class="card-title">Widgets por categoría y guía visual</h2>
+            </div>
+            <p class="item-sub" style="margin-bottom:10px;">Elige qué módulos deseas mostrar en tus widgets:</p>
+            <div class="list-stack" style="margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;">
+                <input id="w-chk-tasks" type="checkbox" checked /> Widget 1: Tareas y Agenda
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;">
+                <input id="w-chk-mail" type="checkbox" checked /> Widget 2: Correos
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;">
+                <input id="w-chk-habits" type="checkbox" checked /> Widget 3: Hábitos y Rachas
+              </label>
+            </div>
+
+            <a href="widgets/desktop-wallpaper.html" target="_blank" class="btn btn-primary btn-xs">Abrir Widget Cristal</a>
+
+            <div class="mockup-grid">
+              <div class="device-mockup">
+                <strong style="font-size:0.82rem;">Android</strong>
+                <p class="item-sub">Mantén pulsada la pantalla de inicio → Widgets → Chrome / BrisaPlan.</p>
+                <div class="mockup-screen">Tareas · Agenda · 🔥 Rachas</div>
+              </div>
+              <div class="device-mockup">
+                <strong style="font-size:0.82rem;">iPhone (iOS)</strong>
+                <p class="item-sub">Safari → Compartir → Añadir a pantalla de inicio para acceso directo.</p>
+                <div class="mockup-screen">BrisaPlan · Vista Hoy</div>
+              </div>
+              <div class="device-mockup">
+                <strong style="font-size:0.82rem;">Escritorio (PC / Mac)</strong>
+                <p class="item-sub">Abre el Widget Cristal en una ventana compacta fijada en tu escritorio.</p>
+                <div class="mockup-screen">Cristal · 3 módulos en vivo</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">Apoyo y Tutorial</h2>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              <a id="paypal-donate-btn" href="https://paypal.me/jmatat8" target="_blank" rel="noopener" class="btn btn-peach">Apoyar con PayPal</a>
+              <button id="btn-open-tutorial" type="button" class="btn btn-soft">Ver tutorial guiado</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title">Privacidad y Derechos ARCO</h2>
+            </div>
+            <p id="arco-legal-text" class="item-sub" style="margin-bottom:14px;"></p>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              <button id="btn-export-arco" type="button" class="btn btn-soft">Exportar datos (JSON)</button>
+              <button id="btn-delete-arco" type="button" class="btn btn-outline" style="color:#E11D48;border-color:#FDA4AF;">Eliminar datos y cuenta</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Botón flotante tarea rápida -->
+  <button id="fab-quick-task" type="button" data-open-quick-task class="fab-add" title="Agregar tarea rápida">+</button>
+
+  <!-- Navegación inferior móvil -->
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-btn active" data-tab="hoy">Hoy</button>
+    <button class="mobile-nav-btn" data-tab="agenda">Agenda</button>
+    <button class="mobile-nav-btn" data-tab="tareas">Tareas</button>
+    <button class="mobile-nav-btn" data-tab="correos">Correos</button>
+    <button class="mobile-nav-btn" data-tab="espacio">Mi Espacio</button>
+  </nav>
+
+  <!-- Modal Tarea Rápida -->
+  <div id="quick-task-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="card-head">
+        <h3 class="card-title">Nueva tarea rápida</h3>
+        <button id="close-quick-task" type="button" class="btn-icon-del">✕</button>
+      </div>
+      <form id="quick-task-form" class="list-stack">
+        <input id="quick-task-title" class="input" type="text" placeholder="¿Qué necesitas hacer?" required />
+        <div class="form-inline" style="margin-bottom:0;">
+          <select id="quick-task-prio" class="select">
+            <option value="alta">Prioridad Alta</option>
+            <option value="media" selected>Prioridad Media</option>
+            <option value="baja">Prioridad Baja</option>
+          </select>
+          <input id="quick-task-color" class="custom-color-input" type="color" value="#4A93C6" title="Color de tarea" />
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;">
+          <input id="quick-task-agenda-check" type="checkbox" /> Agendar también hoy a las:
+          <input id="quick-task-time" class="input" type="time" value="10:00" style="max-width:120px;" />
+        </label>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Guardar tarea</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Tutorial -->
+  <div id="tutorial-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="card-head">
+        <h3 id="tut-title" class="card-title"></h3>
+        <span id="tut-counter" class="item-sub"></span>
+      </div>
+      <p id="tut-body" class="item-sub" style="margin-bottom:18px;font-size:0.9rem;"></p>
+      <div style="display:flex;justify-content:flex-end;">
+        <button id="tut-next" type="button" class="btn btn-primary">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast-banner"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
